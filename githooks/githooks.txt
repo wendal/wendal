@@ -1,0 +1,299 @@
+githooks(5)
+===========
+
+NAME
+----
+githooks - Hooks(钩子) used by git
+
+SYNOPSIS
+--------
+$GIT_DIR/hooks/*
+
+
+简介
+-----------
+
+Hooks(钩子),是一些存放于`$GIT_DIR/hooks`文件夹的小脚本,在特定条件下触发动作.
+当执行'git init',几个示例hook将复制到新资源库的hooks文件夹, 但默认情况下他们都是禁用状态.
+要启用一个hook(钩子),请移除其`.sample`后缀.
+
+注意: 你还需要为这些hook(钩子)添加可执行权限(译者注: 仅针对非Windows系统, chmod u+x XXX).
+然而,在新创建的资源库中, - 那些`.sample`默认已经是可执行的(译者注: 并非如此!!).
+
+本文档描述的是当前已经等于的hooks(钩子).
+
+HOOKS(钩子)
+-----
+
+applypatch-msg
+~~~~~~~~~~~~~~
+
+这个hook由'git am'脚本触发. 它将接受一个参数,即将提交的commit msg的临时文件路径.
+如果这个hook以非0状态退出,那么'git am'将在patch(补丁)应用之前取消.
+
+这个hook可以用于修改message(信息)文件, 用来匹配项目的规范格式(如果有的话). 
+也可以用于校验commit msg,并在必要时拒绝提交.
+
+缺省的'applypatch-msg' hook, 当其启用时,将调用'commit-msg' hook.
+
+pre-applypatch
+~~~~~~~~~~~~~~
+
+这个hook由'git am'脚本触发.  它并不接受参数, 当patch(补丁信息)已经应用,且commit尚未执行
+之前被调用.
+
+如果以非0状态退出, 那么working tree(工作树)将不会被提交,但patch已经被应用.
+
+它可以用于检查当前的working tree(工作树),当其无法通过某个特定测试时,拒绝进行提交.
+
+缺省的'pre-applypatch' hook, 当其启用时,将调用'pre-commit' hook.
+
+post-applypatch
+~~~~~~~~~~~~~~~
+
+这个hook由'git am'脚本触发.  它并不接受参数, 在patch已经应用且commit已经完成后执行.
+
+这个hook主要用于通知, 而且对'git am'的输出无影响.
+
+pre-commit
+~~~~~~~~~~
+
+这个hook由'git commit'触发, 且可以通过`--no-verify` 来略过.  它并不接受参数, 在commit msg被创建之前执行.  
+如果以非0状态退出,将导致'git commit'被取消.
+
+缺省的'pre-commit' hook, 当启用时, 将捕捉以空白字符结尾的行,如果找到这样的行,则取消提交.
+(译者注: 事实上并非如此,而是查找非ascii文件名!!)
+
+所有的'git commit' hooks在执行时,如果没有指定编辑器,那么都附带一个环境变量`GIT_EDITOR=:`
+
+prepare-commit-msg
+~~~~~~~~~~~~~~~~~~
+
+这个hook由'git commit',在准备好默认log信息后触发,但此时,编辑器尚未启动.
+
+它可能接受1到3个参数.
+第一个参数是包含commit msg的文件路径.
+第二个参数是commit msg的来源, 可能的值有: 
+  `message` (当使用`-m` 或`-F` 选项);
+  `template` (当使用`-t` 选项,或`commit.template`配置项已经被设置);
+  `merge` (当commit是一个merge或者`.git/MERGE_MSG`存在); 
+  `squash`(当`.git/SQUASH_MSG`文件存在);
+  `commit`, 且附带该commit的SHA1 (当使用`-c`, `-C` 或 `--amend`).
+
+如果以非0状态退出, 'git commit' 将会被取消.
+
+这个hook的目的是修改message文件,且不受`--no-verify`的影响.  
+本hook以非0状态退出,则代表当前hook失败,并取消提交.它不应该取代`pre-commit` hook.
+
+示例`prepare-commit-msg` hook是准备一个merge的冲突列表.
+
+commit-msg
+~~~~~~~~~~
+
+这个hook由'git commit'触发, 且可以通过`--no-verify` 来略过.
+它接受一个参数, 包含commit msg的文件的路径.
+
+如果以非0状态退出, 'git commit' 将会被取消.
+
+这个hook可以用于修改message(信息)文件, 用来匹配项目的规范格式(如果有的话). 
+也可以用于校验commit msg,并在必要时拒绝提交.
+
+缺省的'commit-msg' hook, 当启用时,将检查重复的"Signed-off-by"行, 如果找到,则取消commit.
+
+post-commit
+~~~~~~~~~~~
+
+这个hook由'git commit'触发.  它不接受参数, 当commit完成后执行.
+
+这个钩子主要用于通知,对'git commit'的输出无影响.
+
+pre-rebase
+~~~~~~~~~~
+
+这个hook由'git rebase'触发,可以用于避免一个分支被rebase.
+
+(译者注: 原文未提及这个hook的参数数量及作用,下面的说明是我自己加的)
+第一个参数, the upstream the series was forked from.
+第二个参数(可选), the branch being rebased (or empty when rebasing the current branch).
+
+如果以非0状态退出,则取消'git rebase'
+
+post-checkout
+~~~~~~~~~~~~~
+
+这个hook由'git checkout'触发, 此时,worktree已经被更新.
+这个hook接受3个参数: 之前HEAD的ref,新HEAD的ref,一个标记(1-改变分支,0-恢复文件)
+这个hook不会影响'git checkout'的输出.
+
+它也可以被'git clone'触发, 仅当没有使用'--no-checkout (-n)'. 
+第一个参数是null-ref,第二个参数新的HEAD的ref,第三个参数(flag)永远为1.
+
+这个hook可以用于进行校验检查, 自动显示前后差异, 或者设置工作目录的meta属性.
+
+post-merge
+~~~~~~~~~~
+
+这个hook由'git merge'触发,当'git pull'在本地资源库执行完毕.
+这个钩子接受一个参数, 一个状态标记(当前merge顺利squash -- 不知道啥意思~_~).
+如果合并失败(冲突),那么这个hook不会影响'git merge'的输出,且不会被执行.
+
+这个hook用于与pre-commit hook共同使用,以保存并恢复working tree的metadata.
+(例如: permissions(权限)/ownership(所有者), ACLS(访问控制), etc).
+请查看源码中的contrib/hooks/setgitperms.perl,演示了如何使用这个功能.
+
+[[pre-receive]]
+pre-receive
+~~~~~~~~~~~
+
+这个hook由远程资源库的'git-receive-pack'触发,此时,'git push'已经在本地资源库执行完毕.
+此时,正准备update远程资源库的refs,且pre-receive hook已经被触发并执行完毕.
+它的退出状态,决定了全部ref的update是否可以进行.
+
+这个hook,每个接收操作,仅执行一次. 它不接受参数,但可以从标准输入读取以下格式的文本(每个ref一行):
+
+  <old-value> SP <new-value> SP <ref-name> LF
+
+这里的 `<old-value>` 是ref中原本的Object名,
+`<new-value>` 是ref中老的Object名 and
+`<ref-name>` 是ref的全名.
+当创建一个新ref,`<old-value>` 将是 40, 即字符`0`.
+(译者注: SP=空格, LF=\n)
+
+如果这个hook以非0状态退出,则所有ref都不会被更新(update). 
+如果以0退出, 仍可以通过<<update,'update'>> hook 来拒绝特定的ref的更新.
+
+hook的标准输入/标准输出,均导向'git send-pack',所以,你可以简单地使用`echo`来为用户打印信息.
+(译者注: 就是本地push后打印出来的信息)
+
+[[update]]
+update
+~~~~~~
+
+这个hook由远程资源库的'git-receive-pack'触发,此时,'git push'已经在本地资源库执行完毕.
+此时,正准备update远程资源库的ref.
+它的退出状态,决定了当前ref的update是否可以进行.
+
+每个将要update的ref,都会触发一次这个hook, 它接受3个参数:
+
+ - 将要被update的ref的名字,
+ - ref中老object的名字,
+ - 将要存储的ref的新名字.
+
+以0状态退出,将允许当前ref被update.
+以非0状态退出,将防止'git-receive-pack'更新当前ref.
+
+这个hook可以用于防止特定的ref被'force'更新..
+就是说,可以确保"fast-forward only"这一安全准则.
+
+它也可以用于记录新旧状态.  然而, 它并不知道整体的分支状态,所以它可能被天真地用于为每个ref发送email.
+<<post-receive,'post-receive'>> hook更适合做这个需求哦.
+
+另外一个用法是使用这个hook实现访问控制, 而不仅仅通过文件系统的权限控制.
+
+hook的标准输入/标准输出,均导向'git send-pack',所以,你可以简单地使用`echo`来为用户打印信息.
+(译者注: 就是本地push后打印出来的信息)
+
+缺省的'update' hook, 当启用,且`hooks.allowunannotated`配置项未设置或设置为false时,防止未声明的tag被更新.
+
+[[post-receive]]
+post-receive
+~~~~~~~~~~~~
+
+这个hook由远程资源库的'git-receive-pack'触发,此时,本地资源库的'git push'已经完成,且所有ref已经更新.
+
+这个hook仅执行一次.  它不接受参数,但跟<<pre-receive,'pre-receive'>> hook获取相同的标准输入格式.
+
+这个hook并不影响'git-receive-pack'的输出,因为它在实际工作完成之后执行.
+
+跟<<post-update,'post-update'>> hook不一样的是,这个hook可以拿到ref在update前后的值.
+
+hook的标准输入/标准输出,均导向'git send-pack',所以,你可以简单地使用`echo`来为用户打印信息.
+(译者注: 就是本地push后打印出来的信息)
+
+缺省的'post-receive' hook 是空白的, 但提供了一个示例脚本`post-receive-email`,位于源码中的`contrib/hooks`
+目录,实现了发送commite mails的功能.
+
+[[post-update]]
+post-update
+~~~~~~~~~~~
+
+这个hook由远程资源库的'git-receive-pack'触发,此时,本地资源库的'git push'已经完成,且所有ref已经更新.
+
+它接受可变数量的参数, 每一个参数都是已经实际update的ref的名字.
+
+这个hook主要是为了统治, 无法影响'git-receive-pack'的输出.
+
+'post-update' hook可以知道哪些ref已经被push,但无法知道原本及更新后的值,
+所以它不是一个好地方去处理新旧变化.
+<<post-receive,'post-receive'>> hook 可以拿到新旧两个值. 你可以考虑使用它们.
+
+默认的'post-update' hook,启用后,将允许'git update-server-info'来更新无状态传输(例如http)的信息.
+如果你通过HTTP协议来公开git资源库,那么你很可能需要启用这个hook.
+
+hook的标准输入/标准输出,均导向'git send-pack',所以,你可以简单地使用`echo`来为用户打印信息.
+(译者注: 就是本地push后打印出来的信息)
+
+pre-auto-gc
+~~~~~~~~~~~
+
+这个hook由'git gc --auto'触发. 它不接受参数, 非0状态退出,将导致'git gc --auto'被取消.
+
+(译者注: 有一个示例contrib/hooks/pre-auto-gc-battery,演示了在电池状态(笔记本电脑没插电源)时,拒绝执行git gc的功能)
+
+post-rewrite
+~~~~~~~~~~~~
+
+这个hook由改写commit的命令所触发(`git commit
+--amend`, 'git-rebase'; 当前 'git-filter-branch' 并'不'触发它!!).
+它的第一个参数,表示当前是什么命令所触发:`amend` 或 `rebase`.  
+也许将来会传递更多特定于命令的参数.
+
+这个hook通过标准输入接收rewritten commit的列表,格式如下:
+
+  <old-sha1> SP <new-sha1> [ SP <extra-info> ] LF
+
+其中'extra-info'是命令本身所决定的,如果为空,那么前置的SP(空格)也不存在.
+当前没有任何命令会使用'extra-info'.
+
+这个hook总是在自动note copying之后只需(请参看 "notes.rewrite.<command>" in linkgit:git-config.txt).
+
+以下是特定命令的附加注释:
+
+rebase::
+	'squash' and 'fixup'操作, 所有提交(squashed)将重写进squashed commit.
+	这意味着多行squash将使用同一个new-sha1'.
++
+在列表中的commits的顺序,严格符合与传递给rebase的顺序.
+
+
+译者后记:
+1. hook列表:
+------------------------------------------------------
+|钩子名字          |触发命令    |参数|非0导致取消|备注|
+|applypatch-msg    |git am      |1   |Yes||
+|pre-applypatch    |git am      |0   |Yes||
+|post-applypatch   |git am      |0   |No ||
+                                
+|pre-commit        |git commit  |0   |Yes||
+|prepare-commit-msg|git commit  |1~3 |Yes||
+|commit-msg        |git commit  |1   |Yes||
+|post-commit       |git commit  |0   |No ||
+                                
+|pre-rebase        |git rebase  |2   |Yes||
+
+|post-checkout     |git checkout|3   |No ||
+
+|post-merge        |git merge   |1   |No ||
+
+|pre-receive       |git-receive-pack |0   |Yes|通过标准输入获取信息|
+|update            |git-receive-pack |3   |Yes||
+|post-receive      |git-receive-pack |0   |No |通过标准输入获取信息|
+|post-update       |git-receive-pack |可变|No ||
+------------------------------------------------------
+2. hook的示例
+虽然示例中,hook都是perl脚本,但绝对不表示只能用perl.只要是可执行的东西,都可以作为钩子
+
+
+GIT
+---
+Part of the linkgit:git[1] suite
