@@ -293,6 +293,24 @@ rebase::
 2. hook的示例
 虽然示例中,hook都是perl脚本,但绝对不表示只能用perl.只要是可执行的东西,都可以作为钩子
 
+3. 源码级别的hook信息
+我非常神奇地发现, hook的名字,并没有独立写在某个h文件中,而是分布于几个具体的c文件中
+主执行入口: run_hook(const char *index_file, const char *name, ...) 定义于run-command.h,实现于run-command.c
+官方说明:
+`run_hook`::
+
+	Run a hook.(执行一个hook)
+	The first argument is a pathname to an index file, or NULL(第一个参数是index file,可能为NULL)
+	if the hook uses the default index file or no index is needed.
+	The second argument is the name of the hook.(第二个参数是hook的名字)
+	The further arguments correspond to the hook arguments.(剩下的,就是hook自己需要的参数了)
+	The last argument has to be NULL to terminate the arguments list.(最后一个参数必须是NULL,C的常识性用法)
+	If the hook does not exist or is not executable, the return
+	value will be zero.(当hook不存在或不可执行,则返回0 )
+	If it is executable, the hook will be executed and the exit
+	status of the hook is returned. (方法的返回值,就是hook的退出状态)
+	On execution, .stdout_to_stderr and .no_stdin will be set.
+	(See below.)
 
 GIT
 ---
